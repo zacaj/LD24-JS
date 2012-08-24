@@ -1,100 +1,13 @@
 <html>
 
-<script type="text/javascript">
-function includeJS(jsPath){
-  var script = document.createElement("script");
-  script.setAttribute("type", "text/javascript");
-  script.setAttribute("src", jsPath);
-  document.getElementsByTagName("head")[0].appendChild(script);
-}
-includeJS("cp/Space.js");
-var shapes;
-var staticBody;
-var space;
-function init()
-{
-	shapes=new Array();
-	space=new Space(0);
-	staticBody=space.getStaticBody();
-	space.setGravity(new Vect(0,900));
+<script type="text/javascript" src="box2d-html5-hello-world.js"></script>
+<script type="text/javascript"  src="main.js">
 	
-  var friction = 0.5; // friction we'll use for all shapes here.
-  var mass = 10; // mass used for non static shapes
-	// create a segment line as floor
-  var ground = new Shape.Segment( 
-                                space.staticBody,  // static body = infinite mass and should not move -> (ignores gravity)
-                                new Vect(0, 0),  // first endpoint in the lower left corner
-                                new Vect(500, 0),  // second endpoint in the lower right corner
-                                2  // width of line
-                              );
-  ground.setFriction(friction);
-  // create one wall on the left side 
-  var wall1 = new Shape.Segment(space.staticBody, new Vect(0, 0), new Vect(0, 500), 2);
-  wall1.setFriction(friction);
-  // create one wall on the right side
-  var wall2 = new Shape.Segment(space.staticBody, new Vect(500, 0), new Vect(500, 500), 2);
-  wall2.setFriction(friction);
-  
-  
-  space.addShape(ground);
-  space.addShape(wall1);
-  space.addShape(wall2);
-
-  
-  // drop some shapes in the space. All bodies get the same mass
-  for( var i = 0; i < 5; ++i ){
-
-    var shape;
-      var width = 40;
-      var height = 50;
-      // create a body. This is the same as for a circle above, 
-      // the only difference is the call to Box.momentFor instead Circle.momentFor
-      var moment = Shape.Box.momentFor(mass, width, height);
-      var body = space.addBody( new Body(mass, moment) );
-      // position the body
-      var xpos = randRange( 50, 400 );
-      var ypos = randRange( 150, 450 );
-      body.setPos( new Vect(xpos, ypos) );
-      
-      // also almost the same as above (o:
-      shape = space.addShape( new Shape.Box( body, width, width ) );
-      shape.setFriction(friction);
-    // add the shape (doesn't matter if it's a circle or box (or segment or polygon)
-    space.addShape(shape);
-  }
-  
-  
-  
-	currentUpdate=window.setInterval("update();", 16);
-}
-function update()
-{
-	var canvas = document.getElementById('screen');
-        var context = canvas.getContext('2d');
-		var playerImg=document.getElementById('playerimg');
-	var html=""+shapes.length;
-        context.fillStyle = '#FFFFFF';
-        context.fillRect(0,0,800,600);
-	for(var i=0;i<shapes.length;i++)
-	{
-		var s=shapes[i];
-		var body=s.body;
-		var p=body.getPos();
-        //context.fillRect(p.x,p.y,20,20);
-		context.drawImage(playerImg,p.x,p.y);
-	}
-	space.step(1/60);
-	document.getElementById('screend').innerHTML=html;
-}
-function addParticle()
-{
-	for(var i=0;i<100;i++)
-	particles.push(new Particle());
-}
 </script> 
-<body onload="init();">
-<div id="screend" style="margin: auto;  background-color: black; color: white;" onclick="addParticle();">
+<body>
+<div id="screend" style="margin: auto auto 10px auto; height: 20px;  background-color: black; color: white;" onclick="foo();">
 </div>
-<canvas id="screen" width="800" height="600" tyle="margin: auto;"> </canvas>
+<canvas id="screen" width="800" height="600" style="margin: auto;"> </canvas>
 <img id="playerimg" src="player.png" style="display: hidden;" />
+<div id="console" style="max-height: 300px"> </div>
 </body>
