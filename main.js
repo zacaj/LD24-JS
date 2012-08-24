@@ -1,15 +1,69 @@
-define(['loop','cp/Vect', 'cp/Space', 'cp/Shape', 'cp/Body', 'cp/constraints/PivotJoint','kbjs'], function(Loop,Vect, Space, Shape, Body, PivotJoint,KeyboardJS){
-  "use strict";
+
+goog.require('box2d');
   var randRange=function(from, to){
     return Math.round(from + Math.random()*(from, to));
   };
-var shapes;
-var staticBody;
-var space;
+  function vec(x,y)
+  {
+	return box2d.b2Vec2(x,y);
+}
+var objects;
+var world;
 var player;
-var newBox=function(x,y,w,h,friction,mass)
+function applyTransform(body,ctx)
 {
-	var moment = Shape.Box.momentFor(mass, w, h);
+	ctx.save();
+	var bPos=body.GetPosition();
+    ctx.translate( bPos.x*16, bPos.y*16 );
+    ctx.rotate( body.GetAngleRadians() ); 
+}
+function newStaticBox(x,y,w,h,friction)
+{
+	x/=16;
+	y/=16;
+	w/=16;
+	h/=16
+	var bodyDef=new box2d.b2BodyDef();
+	bodyDef.position.SetXY(x,y);
+	var body=world.CreateBody(bodyDef);
+	var shape=new box2d.b2PolygonShape();
+	shape.SetAsBox(w/2,h/2);
+	var fixtureDef=new box2d.b2FixtureDef();
+	fixtureDef.density=0;
+	fixtureDef.shape=shape;
+	fixtureDef.friction=friction;
+	body.CreateFixture(fixtureDef);
+	body.ResetMassData();
+	this.body=body;
+	this.poly=shape;
+	this.w=w;
+	this.h=h;
+	this.draw=DrawPolygon;
+}
+var newBox=function(x,y,w,h,friction,density)
+{
+	x/=16;
+	y/=16;
+	w/=16;
+	h/=16;
+	var bodyDef=new box2d.b2BodyDef();
+	bodyDef.position.SetXY(x,y);
+	bodyDef.type = box2d.b2BodyType.b2_dynamicBody;
+	var body=world.CreateBody(bodyDef);
+	var shape=new box2d.b2PolygonShape();
+	shape.SetAsBox(w/2,h/2);
+	var fixtureDef=new box2d.b2FixtureDef();
+	fixtureDef.density=density;
+	fixtureDef.shape=shape;
+	fixtureDef.friction=friction;
+	body.CreateFixture(fixtureDef);
+	body.ResetMassData();
+	this.body=body;
+	this.poly=shape;
+	this.w=w;
+	this.h=h;
+	this.draw=DrawPolygon;
+	/*var moment = Shape.Box.momentFor(mass, w, h);
       var body = space.addBody( new Body(mass, moment) );
       body.setPos( new Vect(x, y) );
       
@@ -19,7 +73,7 @@ var newBox=function(x,y,w,h,friction,mass)
     // add the shape (doesn't matter if it's a circle or box (or segment or polygon)
     space.addShape(shape);
 	shapes.push(shape);
-	return shape;
+	return shape;*/
 };
 var ai2=function(b,i)
 {
@@ -33,62 +87,97 @@ var ai2=function(b,i)
 		if(i.x>18*3)
 			i.x=18*3;
 	}
-	b.applyImpulse(i,new Vect(0,0));
+	var m=b.GetMass();
+	var t=(b.GetMass());
+	//b.m_linearVelocity.x+=i.x;
+	i.x*=t;
+	/*if(i.x<0)
+		i.x=-1000;
+	else
+		i.x=1000;*/
+	b.ApplyLinearImpulse(i,b.GetWorldCenter());
+	//b.ApplyForceToCenter(i,b.GetWorldCenter());
+	/*if(b.m_linearVelocity.x>10)
+		b.m_linearVelocity.x=10;
+	if(b.m_linearVelocity.x<-10)
+		b.m_linearVelocity.x=-10;*/
+	//b.applyImpulse(i,new Vect(0,0));
 }
 var Player=function(x,y)
 {
-	this.shape=newBox(x,y,6,32,.01,5);
+	var box=new newBox(x,y,6,32,.01,2);
+	this.body=box.body;
+	this.shape=box.poly;
 	var shape=this.shape;
-	shape.body.setMoment(99999999999999);
-	this.shape.data=this;
+	//shape.body.setMoment(99999999999999);
+	//this.body.SetAngularDamping(Math.infinity);
+	this.body.SetFixedRotation(1);
+	this.bod
+	//this.shape.data=this;
 	this.air=0;
 	this.jump=0;
-	this.draw=function(context)
+	this.draw=function(context,o)
 	{
-		var p=this.shape.body.getPos();
+		applyTransform(this.body,context);
 		var playerImg=document.getElementById('playerimg');
-		context.drawImage(playerImg,p.x-8,p.y-16);
+		context.drawImage(playerImg,-8,-16);
+		context.restore();
 	};
 	this.update=function()
 	{
-		this.shape.body.resetForces();
+		//this.shape.body.resetForces();
 		var key=KeyboardJS.activeKeys();
-		var b=this.shape.body;
+		var b=this.body;
+		b.SetAwake(true);
+		this.body.ApplyLinearImpulse(new box2d.b2Vec2(1,0),this.body.GetWorldCenter());
 		if(key.indexOf("z")!=-1)
 		{
+			if(this.jump<1)
+			{
+				//this.body.m_linearVelocity.y-=10000;
+				this.body.ApplyLinearImpulse(new box2d.b2Vec2(0,this.body.GetMass()*-(13-this.jump)),this.body.GetWorldCenter());
+				//this.body.ApplyForceToCenter(new box2d.b2Vec2(0,this.body.GetMass()*-Math.abs(700)));
 			this.jump++;
-			if(this.jump<2)
-				this.shape.body.applyImpulse(new Vect(0,-1600),new Vect(0,0));
+			}
+//			this.body.ApplyForceToCenter(new box2d.b2Vec2(0,-100000000),true);
+			//	this.shape.body.applyImpulse(new Vect(0,-1600),new Vect(0,0));
 		}
-		else 
+		else /*if(this.jump<10)
+		
+			this.jump++;
+			else*/
 			this.jump=0;
 		if(key.indexOf("right")!=-1)
 		{
-			if(b.v.x<-10)
-				b.v.x=0;
+			if(b.m_linearVelocity.x<-10)
+				b.m_linearVelocity.x=0;
 			else
-				ai2(b,new Vect(250-b.v.x,0));
+				ai2(b,new box2d.b2Vec2(10-b.m_linearVelocity.x,0));
 		}
 		else if(key.indexOf("left")!=-1)
 		{
-			if(b.v.x>10)
-				b.v.x=0;
+			if(b.m_linearVelocity.x>10)
+				b.m_linearVelocity.x=0;
 			else
-				ai2(b,new Vect(-(b.v.x+250),0));
+				ai2(b,new box2d.b2Vec2(-(b.m_linearVelocity.x+10),0));
 		}
 		else
 		{
-			if(Math.abs(b.v.x)>400)
-				ai2(b,new Vect(-b.v.x*.6));
+			if(Math.abs(b.m_linearVelocity.x)>400)
+				ai2(b,new box2d.b2Vec2(-this.body.GetMass()*b.m_linearVelocity.x*.6,0));
 			else
-				b.v.x=0;
+				b.m_linearVelocity.x=0;
 		}
 	};
 }
 var init=function()
 {
-	shapes=new Array();
-	space=new Space();
+	objects=new Array();
+	var gravity = new box2d.b2Vec2(0, 20);
+	world = new box2d.b2World(gravity);
+	objects.push(new newStaticBox(400,550,600,50,.5));
+  objects.push(player=new Player(500,500));
+	/*space=new Space();
 	staticBody=space.getStaticBody();
 	space.setGravity(new Vect(0,900));
 	
@@ -109,13 +198,12 @@ var init=function()
   var wall2 = new Shape.Segment(space.staticBody, new Vect(500, 0), new Vect(500, 500), 2);
   wall2.setFriction(friction);
   
-  player=new Player(500,500);
   
   space.addShape(ground);
   shapes.push(ground);
  // space.addShape(wall1);
  // space.addShape(wall2);
-
+*/
   
   // drop some shapes in the space. All bodies get the same mass
   for( var i = 0; i < 20; ++i ){
@@ -124,28 +212,38 @@ var init=function()
       var width = randRange(8,32);
       var height = randRange(8,23);
       var xpos = randRange( 100, 200 );
-      var ypos = randRange( 400, 250 );
-      shape=newBox(xpos,ypos,width,height,friction,mass);
+      var ypos = randRange( 200, 250 );
+      shape=new newBox(xpos,ypos,width,height,.5,5);
+	  objects.push(shape);
   }
   
-  this.update=update;
-  this.draw=draw;
+  //this.update=update;
+  //this.draw=draw;
   //this.addParticle=addParticle;
   
-  var loop = new Loop(60, update, draw);
-  loop.start();
+  //var loop = new Loop(60, update, draw);
+  //loop.start();
+	currentUpdate=window.setInterval("update();", 16);
 };
 var update=function()
 {
 	//document.getElementById('console').innerHTML+="<br />"+shapes[1].body.getPos().y;
-	for(var i=0;i<shapes.length;i++)
+	/*for(var i=0;i<shapes.length;i++)
 	{
 		if(shapes[i].data)
 			shapes[i].data.update();
 	}
-	space.step(1/60);
+	space.step(1/60);*/
+	world.ClearForces();
+	for(var i=0;i<objects.length;i++)
+	{
+		if(objects[i].update)
+			objects[i].update();
+	}
+	world.Step(1/60,6,2);
+	draw();
 };
-
+/*
 function drawShape ( shape, canvas ){
       //canvas.pen.save();
 	  if(shape.data)
@@ -210,24 +308,44 @@ function drawShape ( shape, canvas ){
       canvas.fill();
       canvas.stroke();
 	  canvas.restore();
-    }
+    }*/
 var draw=function()
 {
 var canvas = document.getElementById('screen');
         var context = canvas.getContext('2d');
-	var html=""+shapes.length;
+	var html=""+objects.length;
         context.fillStyle = '#DDDDDD';
         context.fillRect(0,0,800,600);
-	for(var i=0;i<shapes.length;i++)
+	for(var i=0;i<objects.length;i++)
 	{
-		var s=shapes[i];
-		var body=s.body;
-		var p=body.getPos();
+		var o=objects[i];
+		//var body=s.body;
+		//var p=body.getPos();
         //context.fillRect(p.x,p.y,20,20);
-		drawShape(s,context);
+		//drawShape(s,context);
+		if(o.draw)
+			o.draw(context,o);
 	}
 	document.getElementById('screend').innerHTML=html;
 
 };
-return new init();
-});
+var DrawPolygon = function (context,o)
+{
+	var poly=o.poly;
+	var vertices=poly.m_vertices;
+	var vertexCount=poly.m_count;
+	if (!vertexCount) return;
+
+	var ctx = context;
+	applyTransform(o.body,ctx);
+	ctx.beginPath();
+	ctx.moveTo(vertices[0].x*16, vertices[0].y*16);
+	for (var i = 1; i < vertexCount; i++)
+	{
+		ctx.lineTo(vertices[i].x*16, vertices[i].y*16);
+	}
+	ctx.closePath();
+	ctx.strokeStyle = "#000000";
+	ctx.stroke();
+	ctx.restore();
+};
